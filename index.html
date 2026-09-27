@@ -2,1002 +2,201 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sistem Informasi Geografis - Kab. Landak (Supabase)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Informasi Geografis - Kab. Landak (Supabase Storage)</title>
     
-    <!-- PUSTAKA PETA LEAFLET CSS -->
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
-    <!-- PUSTAKA LEAFLET GEOMAN -->
-    <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.css" />
-
-    <!-- PUSTAKA JSZIP & TURF.JS -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
-
-    <!-- PUSTAKA SUPABASE JS -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
+    <!-- Tailwind CSS untuk Desain Modern -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
     <style>
-        :root {
-            --primary: #1e3799;
-            --success: #27ae60;
-            --danger: #e74c3c;
-            --dark: #2c3e50;
-            --bg-main: #f8f9fa;
-            --border: #dcdde1;
-        }
-
-        * { box-sizing: border-box; }
-
-        body, html {
-            margin: 0; padding: 0; height: 100%; width: 100%;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-main); overflow: hidden;
-        }
-
-        /* STYLE SPLASH SCREEN */
-        #splash-screen {
-            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background-color: #ffffff; display: flex; flex-direction: column; 
-            justify-content: center; align-items: center; z-index: 999999;
-            transition: opacity 0.5s ease; gap: 15px; padding: 20px; text-align: center;
-        }
-
-        @keyframes kedipAnim {
-            0% { opacity: 0.4; transform: scale(0.98); }
-            50% { opacity: 1; transform: scale(1); }
-            100% { opacity: 0.4; transform: scale(0.98); }
-        }
-
-        .splash-content-animated {
-            display: flex; flex-direction: column; align-items: center; gap: 15px;
-            animation: kedipAnim 1.5s infinite ease-in-out; max-width: 100%;
-        }
-
-        .splash-title {
-            font-size: clamp(24px, 6vw, 36px); font-weight: 900;
-            color: #27ae60; letter-spacing: 2px; text-transform: uppercase;
-        }
-
-        #splash-screen img {
-            width: clamp(140px, 45vw, 220px); height: auto; object-fit: contain;
-        }
-
-        /* HALAMAN UTAMA / LANDING PAGE */
-        #landing-page {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: #ffffff; display: flex; flex-direction: column; 
-            justify-content: center; align-items: center; z-index: 10000; 
-            padding: 20px; text-align: center; color: var(--dark); overflow-y: auto;
-        }
-
-        .landing-logo-animated {
-            width: clamp(130px, 40vw, 200px); height: auto; object-fit: contain;
-            margin-bottom: 15px; animation: kedipAnim 2s infinite ease-in-out;
-        }
-
-        .landing-card-container {
-            display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;
-            max-width: 900px; margin-top: 25px; width: 100%;
-        }
-
-        .landing-card {
-            background: #f8f9fa; color: var(--dark); border: 1px solid var(--border);
-            padding: 25px 20px; border-radius: 12px; width: 260px; max-width: 100%;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05); cursor: pointer; 
-            transition: transform 0.3s, box-shadow 0.3s;
-            display: flex; flex-direction: column; align-items: center; gap: 12px;
-        }
-
-        .landing-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-            border-color: var(--primary);
-        }
-
-        .landing-card span { font-size: 36px; }
-        .landing-card h3 { margin: 0; font-size: 16px; color: var(--primary); }
-        .landing-card p { margin: 0; font-size: 12.5px; color: #666; line-height: 1.4; }
-
-        /* KONTROL HALAMAN APLIKASI UTAMA */
-        .page-section {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: none; flex-direction: row; overflow: hidden; background: var(--bg-main);
-        }
-
-        .page-section.active { display: flex; }
-
-        .btn-back-menu {
-            position: absolute; top: 20px; left: 20px; z-index: 1000;
-            background: white; color: var(--dark); border: 2px solid var(--border);
-            padding: 8px 14px; border-radius: 6px; font-weight: bold; cursor: pointer;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1); font-size: 13px;
-        }
-
-        /* HALAMAN CEK KOORDINAT */
-        .check-map-container { position: relative; width: 100%; height: 100%; }
-        #mapCheck { width: 100%; height: 100%; }
-
-        .check-floating-panel {
-            position: absolute; top: 75px; left: 20px; z-index: 1000;
-            background: white; padding: 15px; border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 340px; max-width: calc(100% - 40px);
-            display: flex; flex-direction: column; gap: 10px; max-height: 80vh; overflow-y: auto;
-        }
-
-        .check-floating-panel input {
-            padding: 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; width: 100%;
-        }
-
-        .btn-action-check {
-            background-color: var(--primary); color: white; border: none;
-            padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px;
-        }
-
-        .btn-gps-check {
-            background-color: #e67e22; color: white; border: none;
-            padding: 10px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 13px;
-        }
-
-        /* HALAMAN 2: DAFTAR POKTAN & FOLDER BREAKDOWN */
-        .list-map-container { position: relative; width: 100%; height: 100%; }
-        #mapList { width: 100%; height: 100%; }
-
-        .list-floating-panel {
-            position: absolute; top: 75px; left: 20px; z-index: 1000;
-            background: white; padding: 15px; border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2); width: 380px; max-width: calc(100% - 40px);
-            display: flex; flex-direction: column; gap: 10px; max-height: 82vh; overflow-y: auto;
-        }
-
-        .list-floating-panel input, .list-floating-panel select {
-            padding: 9px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; width: 100%;
-        }
-
-        .btn-all-pins {
-            background-color: var(--success); color: white; border: none;
-            padding: 8px 12px; border-radius: 6px; font-size: 12.5px; font-weight: bold; cursor: pointer;
-            text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-
-        /* AKORDEON FOLDER KECAMATAN & DESA */
-        .folder-kecamatan { border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; overflow: hidden; background: #fff; }
-        .folder-kecamatan-header { background: #f1f2f6; padding: 10px 12px; font-weight: bold; font-size: 13px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: var(--primary); }
-        .folder-kecamatan-header:hover { background: #e4e7eb; }
-        .folder-kecamatan-body { display: none; padding: 6px; background: #fafafa; }
-
-        .folder-desa { border: 1px solid #e1e2e6; border-radius: 5px; margin-bottom: 5px; overflow: hidden; background: #fff; }
-        .folder-desa-header { background: #edf2f7; padding: 8px 10px; font-weight: 600; font-size: 12.5px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: var(--dark); }
-        .folder-desa-header:hover { background: #e2e8f0; }
-        .folder-desa-body { display: none; padding: 5px; display: flex; flex-direction: column; gap: 5px; }
-
-        .poktan-item-row {
-            background: #ffffff; border: 1px solid var(--border); padding: 8px 10px; border-radius: 5px;
-            cursor: pointer; transition: background 0.2s; display: flex; flex-direction: column; gap: 2px;
-        }
-        .poktan-item-row:hover { background: #f0f4f8; border-color: var(--primary); }
-
-        /* HALAMAN FORMULIR */
-        .app-wrapper-form { display: flex; flex-direction: row; height: 100vh; width: 100vw; overflow: hidden; }
-        .sidebar-form {
-            width: 450px; min-width: 320px; background-color: #ffffff;
-            box-shadow: 4px 0 15px rgba(0,0,0,0.05); padding: 20px;
-            display: flex; flex-direction: column; overflow-y: auto; z-index: 10;
-        }
-        .map-container-form { flex: 1; position: relative; height: 100%; width: 100%; }
-        #mapForm { width: 100%; height: 100%; }
-
-        .form-group { margin-bottom: 12px; display: flex; flex-direction: column; }
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        label { font-weight: 600; font-size: 13px; color: #4b5563; margin-bottom: 5px; }
-        input, select { padding: 10px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13.5px; background-color: #fafafa; width: 100%; }
-        input[type="file"] { padding: 8px; background-color: #fff; cursor: pointer; }
-
-        .btn-gps { background-color: #e67e22; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; margin-bottom: 10px; width: 100%; }
-        .btn-preview { background-color: var(--primary); color: white; border: none; padding: 12px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; margin: 5px 0; width: 100%; }
-        .btn-reset-rute { background-color: var(--danger); color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; margin-bottom: 15px; width: 100%; }
-        .summary-card { background-color: #f8f9fa; border: 1px solid var(--border); border-radius: 8px; padding: 12px 15px; margin-bottom: 15px; }
-        .summary-item { display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
-        .photo-preview-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 8px; }
-        .photo-preview-item { position: relative; width: 100%; padding-top: 75%; border-radius: 6px; overflow: hidden; border: 1px solid var(--border); background-color: #f1f2f6; }
-        .photo-preview-item img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
-        .photo-preview-item .remove-btn { position: absolute; top: 4px; right: 4px; background: rgba(231, 76, 60, 0.9); color: white; border: none; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; cursor: pointer; }
-        .btn-submit { background-color: var(--success); color: white; border: none; padding: 14px; border-radius: 6px; font-size: 15px; font-weight: bold; cursor: pointer; width: 100%; margin-bottom: 10px; }
-        .btn-print { background-color: #2980b9; color: white; border: none; padding: 12px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer; width: 100%; margin-bottom: 20px; display: none; }
-
-        /* STATUS MODAL */
-        .status-modal {
-            position: absolute; top: 20px; right: 20px; background: rgba(255, 255, 255, 0.95);
-            padding: 12px 18px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.25);
-            z-index: 2000; display: none; align-items: center; gap: 12px; border-left: 5px solid var(--primary);
-        }
-        .spinner { width: 18px; height: 18px; border: 3px solid var(--border); border-top: 3px solid var(--primary); border-radius: 50%; animation: spin 0.8s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-
-        @media screen and (max-width: 768px) {
-            body, html { overflow: auto; }
-            .app-wrapper-form { flex-direction: column-reverse; height: auto; min-height: 100vh; }
-            .sidebar-form { width: 100%; padding: 15px; }
-            .map-container-form { height: 45vh; min-height: 320px; position: sticky; top: 0; z-index: 100; }
+        #map { height: 100vh; width: 100%; }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
         }
     </style>
 </head>
-<body>
+<body class="bg-slate-100 flex h-screen overflow-hidden">
 
-<!-- SPLASH SCREEN -->
-<div id="splash-screen">
-    <div class="splash-content-animated">
-        <div class="splash-title">SELAMAT DATANG</div>
-        <img src="Logo Home.png" alt="Logo Home" onerror="this.style.display='none'">
-        <p style="color: #666; font-size: 13px; margin: 0;">Memuat Sistem Informasi Geografis (Supabase)...</p>
-    </div>
-</div>
-
-<!-- LANDING PAGE -->
-<div id="landing-page">
-    <img src="Logo Home.png" alt="Logo Home" class="landing-logo-animated" onerror="this.style.display='none'">
-    <h1 style="font-size: clamp(20px, 4.5vw, 32px); margin-bottom: 5px; color: var(--primary);">SISTEM INFORMASI GEOGRAFIS JUT & HORTI</h1>
-    <p style="font-size: 14px; color: #555; margin-bottom: 15px;">Dinas Ketahanan Pangan dan Pertanian Kabupaten Landak (Supabase Version)</p>
-    
-    <div class="landing-card-container">
-        <div class="landing-card" onclick="bukaHalaman('check-page')">
-            <span>📍</span>
-            <h3>Cek Titik Koordinat</h3>
-            <p>Periksa titik koordinat, ambil GPS perangkat, & analisis status kawasan LP2B.</p>
-        </div>
-        <div class="landing-card" onclick="bukaHalaman('list-page')">
-            <span>📋</span>
-            <h3>Daftar Pengajuan Poktan</h3>
-            <p>Lihat daftar kelompok tani terdaftar, folder breakdown wilayah, & analisis LP2B.</p>
-        </div>
-        <div class="landing-card" onclick="bukaHalaman('form-page')">
-            <span>📝</span>
-            <h3>Pengajuan JUT & Horti</h3>
-            <p>Input data kelompok tani, buat rute jalan usaha tani, dan unggah foto dokumentasi.</p>
-        </div>
-    </div>
-</div>
-
-<!-- HALAMAN 1: PENGECEKAN TITIK KOORDINAT -->
-<div id="check-page" class="page-section">
-    <button class="btn-back-menu" onclick="bukaHalaman('landing-page')">⬅️ Menu Utama</button>
-    <div class="check-map-container">
-        <div class="check-floating-panel">
-            <h4 style="margin: 0 0 5px 0; color: var(--primary);">Pencarian Koordinat / Lokasi</h4>
-            <input type="text" id="inputCariCheck" placeholder="Contoh: 0.3847, 109.9532" onkeypress="if(event.key==='Enter') jalankanPencarianCheck()">
-            <button class="btn-action-check" onclick="jalankanPencarianCheck()">🔍 Cari di Peta</button>
-            <button class="btn-gps-check" onclick="ambilGPSCheckPage()">📍 Ambil Titik GPS Perangkat Saya</button>
-            <div id="infoRadiusCheck" style="font-size: 12px; color: #444; margin-top: 5px; line-height: 1.4;">
-                <i>Tip: Masukkan koordinat atau klik tombol GPS untuk memeriksa status kawasan LP2B.</i>
+    <!-- Sidebar Formulir & Informasi -->
+    <div class="w-full md:w-[450px] bg-white shadow-2xl flex flex-col z-10 h-full">
+        <!-- Header -->
+        <div class="p-5 bg-emerald-700 text-white flex items-center space-x-3 shadow-md">
+            <img src="Logo Kabupaten Landak.png" alt="Logo" class="w-10 h-10 object-contain bg-white rounded-full p-1" onerror="this.style.display='none'">
+            <div>
+                <h1 class="font-bold text-lg leading-tight">SIG Jalan Usaha Tani</h1>
+                <p class="text-xs text-emerald-100">Kabupaten Landak</p>
             </div>
         </div>
-        <div id="mapCheck"></div>
-    </div>
-</div>
 
-<!-- HALAMAN 2: DAFTAR POKTAN DENGAN FOLDER BREAKDOWN -->
-<div id="list-page" class="page-section">
-    <button class="btn-back-menu" onclick="bukaHalaman('landing-page')">⬅️ Menu Utama</button>
-    <div class="list-map-container">
-        <div class="list-floating-panel">
-            <h4 style="margin: 0 0 4px 0; color: var(--primary);">Daftar & Folder Breakdown Poktan</h4>
-            
-            <!-- KOLOM PENCARIAN DATA -->
-            <input type="text" id="inputPencarianPoktan" placeholder="🔍 Cari nama poktan atau ketua..." oninput="filterDataPoktanWilayah()">
-            
-            <!-- TOMBOL TAMPILKAN SEMUA PIN -->
-            <button class="btn-all-pins" onclick="tampilkanSemuaPinDiPeta()">🌐 Tampilkan Semua Pin di Peta</button>
-
-            <!-- KONTAINER FOLDER BREAKDOWN -->
-            <div id="containerFolderPoktan" style="display: flex; flex-direction: column; gap: 4px; max-height: 55vh; overflow-y: auto; margin-top: 5px;">
-                <i style="font-size: 12px; color: #888;">Memuat folder data...</i>
+        <!-- Form Container -->
+        <div class="p-6 overflow-y-auto flex-1 space-y-4">
+            <div class="bg-emerald-50 border-l-4 border-emerald-600 p-3 text-xs text-emerald-800">
+                <span class="font-bold">Petunjuk:</span> Klik pada peta untuk menentukan lokasi titik awal atau jalur Jalan Usaha Tani, lalu lengkapi data di bawah ini.
             </div>
-        </div>
-        <div id="mapList"></div>
-    </div>
-</div>
 
-<!-- HALAMAN 3: FORMULIR PENGAJUAN JUT & HORTI -->
-<div id="form-page" class="page-section">
-    <button class="btn-back-menu" onclick="bukaHalaman('landing-page')">⬅️ Menu Utama</button>
-    
-    <div class="app-wrapper-form" style="width: 100%; height: 100%;">
-        <div class="sidebar-form" style="padding-top: 50px;">
-            <div style="display: flex; align-items: center; gap: 15px; border-bottom: 3px solid var(--success); padding-bottom: 15px; margin-bottom: 20px;">
-                <img src="Logo Kabupaten Landak.png" alt="Logo Kab Landak" style="width: 45px; height: 55px; object-fit: contain;" onerror="this.style.display='none'">
-                <div style="display: flex; flex-direction: column; gap: 2px;">
-                    <span style="font-size: 11px; color: var(--dark); font-weight: bold; text-transform: uppercase;">Pemerintah Kabupaten Landak</span>
-                    <span style="font-size: 11px; color: var(--dark); font-weight: bold; text-transform: uppercase;">Dinas Ketahanan Pangan & Pertanian</span>
+            <form id="gisForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Nama Kelompok Tani (Poktan)</label>
+                    <input type="text" id="namaPoktan" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="Contoh: Tani Makmur">
                 </div>
-            </div>
-            
-            <form id="mainForm" onsubmit="event.preventDefault(); prosesValidasiDanAnalisis();">
-                <div class="form-group">
-                    <label>Nama Kelompok Tani (Poktan)</label>
-                    <input type="text" id="nama_poktan" placeholder="Contoh: Tani Makmur" required>
+
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">NIK Ketua</label>
+                    <input type="text" id="nik" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="Nomor Induk Kependudukan">
                 </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Kecamatan</label>
-                        <select id="kecamatan" onchange="updateDesaList()" required>
-                            <option value="">-- Pilih Kecamatan --</option>
-                        </select>
+
+                <div class="grid grid-cols-2 gap-2">
+                    Latitude & Longitude otomatis terisi saat peta diklik
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Latitude</label>
+                        <input type="text" id="lat" readonly required class="w-full px-3 py-2 bg-gray-50 border rounded-lg text-sm text-gray-500">
                     </div>
-                    <div class="form-group">
-                        <label>Desa</label>
-                        <select id="desa" required>
-                            <option value="">-- Pilih Desa --</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Nama Ketua</label>
-                        <input type="text" id="nama_ketua" required>
-                    </div>
-                    <div class="form-group">
-                        <label>NIK Ketua (16 Digit)</label>
-                        <input type="text" id="nik" maxlength="16" pattern="[0-9]{16}" oninput="this.value = this.value.replace(/[^0-9]/g, '')" required>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Jumlah Anggota</label>
-                        <input type="number" id="jumlah_anggota" required min="1">
-                    </div>
-                    <div class="form-group">
-                        <label>Luas Lahan (Ha)</label>
-                        <input type="number" step="0.01" id="luas_lahan" required>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-600 mb-1">Longitude</label>
+                        <input type="text" id="lng" readonly required class="w-full px-3 py-2 bg-gray-50 border rounded-lg text-sm text-gray-500">
                     </div>
                 </div>
 
-                <hr style="border:0; border-top: 1px dashed var(--border); margin: 15px 0;">
-                <label style="color: var(--primary);">📍 Koordinat Jalan (Awal & Akhir)</label>
-                <button type="button" class="btn-gps" onclick="ambilLokasiGPSForm()">📍 Ambil Titik GPS Perangkat (Pin Bisa Digeser)</button>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Lat Awal (Y)</label>
-                        <input type="number" step="0.000001" id="lat_awal" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Lon Awal (X)</label>
-                        <input type="number" step="0.000001" id="lon_awal" required>
-                    </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Panjang Jalan (Meter)</label>
+                    <input type="text" id="panjangJalan" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="Contoh: 500">
                 </div>
 
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Lat Akhir (Y)</label>
-                        <input type="number" step="0.000001" id="lat_akhir" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Lon Akhir (X)</label>
-                        <input type="number" step="0.000001" id="lon_akhir" required>
-                    </div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Foto Kondisi Sawah</label>
+                    <input type="file" id="fotoSawah" accept="image/*" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
                 </div>
 
-                <button type="button" class="btn-preview" onclick="plotKePetaForm(true)">👁️ Tampilkan Rute di Peta</button>
-                <button type="button" class="btn-reset-rute" onclick="resetRutePetaForm()">🔄 Hapus / Reset Rute</button>
-
-                <hr style="border:0; border-top: 1px dashed var(--border); margin: 15px 0;">
-                <div class="form-group">
-                    <label style="color: var(--primary);">🌾 Foto Lahan Sawah (Maks 2 - Kompres Otomatis)</label>
-                    <input type="file" id="foto_sawah_input" accept="image/*" multiple onchange="handleFotoUpload(this, 'sawah')">
-                    <div id="previewSawahGrid" class="photo-preview-grid"></div>
+                <div>
+                    <label class="block text-xs font-semibold text-gray-600 mb-1">Foto Kondisi Jalan</label>
+                    <input type="file" id="fotoJalan" accept="image/*" class="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
                 </div>
 
-                <div class="form-group">
-                    <label style="color: var(--primary);">🛣️ Foto Lokasi Jalan (Maks 2 - Kompres Otomatis)</label>
-                    <input type="file" id="foto_jalan_input" accept="image/*" multiple onchange="handleFotoUpload(this, 'jalan')">
-                    <div id="previewJalanGrid" class="photo-preview-grid"></div>
-                </div>
-
-                <div class="summary-card">
-                    <div class="summary-item">
-                        <label>📏 Total Panjang:</label>
-                        <span id="lbl-panjang" style="color: var(--success); font-size: 15px; font-weight: bold;">0 meter</span>
-                    </div>
-                </div>
-
-                <button type="submit" id="btnSubmit" class="btn-submit">🚀 Kirim Berkas & Analisis LP2B</button>
-                <button type="button" id="btnPrint" class="btn-print" onclick="cetakBuktiPDF()">🖨️ Cetak Bukti Pengajuan (PDF)</button>
+                <button type="submit" id="submitBtn" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg text-sm transition shadow-md">
+                    Kirim Pengajuan
+                </button>
             </form>
         </div>
-
-        <div class="map-container-form">
-            <div id="mapForm"></div>
-        </div>
     </div>
-</div>
 
-<!-- MODAL STATUS GLOBAL -->
-<div id="statusModal" class="status-modal">
-    <div id="statusSpinner" class="spinner"></div>
-    <div style="display: flex; flex-direction: column;">
-        <span id="statusTitle" style="font-size: 13px; font-weight: bold; color: var(--dark);">Memproses...</span>
-        <span id="statusSub" style="font-size: 11px; color: #666;">Harap tunggu</span>
-    </div>
-</div>
+    <!-- Peta Utama -->
+    <div id="map" class="flex-1"></div>
 
-<!-- LEAFLET & GEOMAN JS -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.min.js"></script>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<script>
-    // ================= KONFIGURASI SUPABASE =================
-    const SUPABASE_URL = 'https://gspoeftzhmbppyiqyvsf.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_5s9AIjHKo7yld0Mu1e0K_g_9W8SPwvr';
-    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    <script>
+        // Konfigurasi Kredensial Supabase
+        const SUPABASE_URL = 'https://gspoeftzhmbppyiqyvsf.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_5s9AIjHKo7yld0Mu1e0K_g_9W8SPwvr';
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    window.addEventListener('load', function() {
-        setTimeout(function() {
-            const splash = document.getElementById("splash-screen");
-            if (splash) {
-                splash.style.opacity = "0";
-                setTimeout(() => splash.style.display = "none", 400);
+        // Inisialisasi Peta (Pusat Kabupaten Landak)
+        const map = L.map('map').setView([0.3895, 109.9572], 11);
+
+        // Layer Peta Dasar OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        let marker;
+
+        // Event Klik pada Peta untuk Ambil Koordinat
+        map.on('click', function(e) {
+            const lat = e.latlng.lat.toFixed(6);
+            const lng = e.latlng.lng.toFixed(6);
+
+            document.getElementById('lat').value = lat;
+            document.getElementById('lng').value = lng;
+
+            if (marker) {
+                marker.setLatLng(e.latlng);
+            } else {
+                marker = L.marker(e.latlng).addTo(map);
             }
-        }, 1500);
-    });
-
-    const wilayahLandak = {
-        "Air Besar": ["Bentiang", "Dango Aji", "Engkadik", "Engkangin", "Jambu Tembawang", "Merayuh", "Nyari", "Parek", "Sekendal", "Sempatung Lawek", "Semuntik", "Sepangah", "Serimbu", "Tenguwe", "Temoyok", "Tengon Pelaik"],
-        "Banyuke Hulu": ["Gamang", "Kampet", "Padang Pio", "Ringo Lojok", "Semade", "Tembawang Bale", "Untang"],
-        "Jelimpo": ["Angan Tembawang", "Balai Peluntan", "Dara Itam I", "Jelimpo", "Kayu Ara", "Kersik Belantian", "Mandor Kiru", "Nyiin", "Papung", "Pawis Hilir", "Sekais", "Temahar", "Tubang Raeng"],
-        "Kuala Behe": ["Angkanyar", "Bengawan Ampar", "Kedama", "Kuala Behe", "Nyayum", "Paku Raya", "Permiit", "Sehe Lusur", "Sejowet", "Semedang", "Tanjung Balai"],
-        "Mandor": ["Bebatung", "Kayu Ara", "Kayu Tanam", "Keramas", "Kerohok", "Mandor", "Manggang", "Mengkunyit", "Ngarak", "Pongok", "Salatiga", "Sebadu", "Sekilap", "Selutung", "Semenok", "Simpang Kasturi", "Sumsum"],
-        "Mempawah Hulu": ["Ansolok", "Babatn", "Bilayuk", "Caokng", "Garu", "Karangan", "Mentonyek", "Pahokng", "Parigi", "Sabaka", "Sailo", "Sala'as", "Salumang", "Sampuro", "Sungai Laki", "Tiang Tanjung", "Tunang"],
-        "Menjalin": ["Bengkawe", "Lamoanak", "Menjalin", "Nangka", "Raba", "Re'es", "Sepahat", "Tempoak"],
-        "Menyuke": ["Angkaras", "Anik Dingir", "Ansang", "Bagak", "Berinang Mayun", "Darit", "Kayu Ara", "Ladangan", "Lintah Betung", "Mamek", "Ongkol Padang", "Sidan", "Songga", "Sungai Lubang", "Ta'as", "Tolok"],
-        "Meranti": ["Ampadi", "Kelampai", "Setolo", "Meranti", "Moro Betung", "Selange", "Tahu"],
-        "Ngabang": ["Amang", "Ambarang", "Amboyo", "Amboyo Inti", "Amboyo Selatan", "Antan Raya", "Engkadu", "Hilir Kantor", "Hilir Tengah", "Munggu", "Muun", "Pak Mayam", "Penyaho", "Dangku", "Raja", "Rasan", "Sebirang", "Sungai Keli", "Tebedak"],
-        "Sebangki": ["Agak", "Kumpang", "Tengah", "Rantau Panjang", "Sebangki", "Sungai Segak"],
-        "Sengah Temila": ["Andeng", "Aur Sampuk", "Banying", "Gombang", "Keranji Mancang", "Keranji Paidang", "Pahauman", "Paloan", "Rabak", "Saham", "Sebatih", "Senakin", "Sidas", "Tonang"],
-        "Sompak": ["Amawakng", "Galar", "Lingkonong", "Pakumbang", "Pauh", "Sompak", "Tapakng"]
-    };
-
-    let cachedLp2bData = null;
-    let masterDataPoktan = [];
-
-    function bukaHalaman(pageId) {
-        document.querySelectorAll('.page-section').forEach(sec => sec.classList.remove('active'));
-        document.getElementById('landing-page').style.display = 'none';
-
-        if (pageId === 'landing-page') {
-            document.getElementById('landing-page').style.display = 'flex';
-        } else {
-            document.getElementById(pageId).classList.add('active');
-            setTimeout(() => {
-                if (pageId === 'check-page' && mapCheck) mapCheck.invalidateSize();
-                if (pageId === 'list-page' && mapList) {
-                    mapList.invalidateSize();
-                    muatDaftarPoktanKeFolder();
-                }
-                if (pageId === 'form-page' && mapForm) mapForm.invalidateSize();
-            }, 200);
-        }
-    }
-
-    async function muatDataLP2BGlobal() {
-        if (cachedLp2bData) return cachedLp2bData;
-        try {
-            const res = await fetch("lp2b_indonesia.zip");
-            const blob = await res.arrayBuffer();
-            const zip = await JSZip.loadAsync(blob);
-            cachedLp2bData = JSON.parse(await zip.file(Object.keys(zip.files)[0]).async("text"));
-            return cachedLp2bData;
-        } catch (e) {
-            console.error("Gagal memuat LP2B:", e);
-            return null;
-        }
-    }
-
-    // ================= PETA HALAMAN 1 =================
-    const mapCheck = L.map('mapCheck', { zoomControl: false }).setView([0.3847, 109.9532], 11);
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles © Esri' }).addTo(mapCheck);
-    L.control.zoom({ position: 'bottomright' }).addTo(mapCheck);
-    let checkMarker = null;
-    let checkLp2bLayer = new L.FeatureGroup().addTo(mapCheck);
-
-    async function prosesAnalisisCheckPoint(lat, lon, labelInfo) {
-        showStatusModal("Analisis Spasial...", "Memeriksa status kawasan LP2B...", true);
-        const lp2b = await muatDataLP2BGlobal();
-        document.getElementById('statusModal').style.display = 'none';
-        checkLp2bLayer.clearLayers();
-        const pt = turf.point([lon, lat]);
-        let masukLp2b = false, targetPolygonFeature = null, minDistance = Infinity;
-
-        if (lp2b && lp2b.features) {
-            for (let f of lp2b.features) {
-                try { if (turf.booleanPointInPolygon(pt, f)) { masukLp2b = true; targetPolygonFeature = f; break; } } catch (err) {}
-            }
-            if (!masukLp2b) {
-                lp2b.features.forEach(f => {
-                    try {
-                        const dist = turf.pointToPolygonDistance(pt, f, { units: 'kilometers' });
-                        if (dist < minDistance) { minDistance = dist; targetPolygonFeature = f; }
-                    } catch (err) {}
-                });
-            }
-        }
-
-        if (targetPolygonFeature) {
-            L.geoJSON(targetPolygonFeature, { style: { color: masukLp2b ? "#27ae60" : "#e67e22", weight: 4, fillColor: masukLp2b ? "#27ae60" : "#e67e22", fillOpacity: 0.6 } }).addTo(checkLp2bLayer);
-        }
-
-        if (checkMarker) mapCheck.removeLayer(checkMarker);
-        checkMarker = L.marker([lat, lon], { draggable: true }).addTo(mapCheck);
-        let statusTeks = masukLp2b ? `<span style="color:var(--success); font-weight:bold;">✔ MASUK KAWASAN LP2B</span>` : `<span style="color:var(--danger); font-weight:bold;">❌ DI LUAR LP2B</span><br><small>Terdekat (±${minDistance.toFixed(2)} km)</small>`;
-        checkMarker.bindPopup(`<b>${labelInfo}</b><br>Lat: ${lat.toFixed(6)}, Lon: ${lon.toFixed(6)}<br>${statusTeks}`).openPopup();
-        document.getElementById('infoRadiusCheck').innerHTML = `<b>Status Analisis:</b><br>${statusTeks}<br><b>Koordinat:</b> ${lat.toFixed(4)}, ${lon.toFixed(4)}`;
-        mapCheck.setView([lat, lon], 15);
-    }
-
-    function jalankanPencarianCheck() {
-        const val = document.getElementById('inputCariCheck').value.trim();
-        if (val.includes(",")) {
-            const p = val.split(",");
-            const lat = parseFloat(p[0]), lon = parseFloat(p[1]);
-            if (!isNaN(lat) && !isNaN(lon)) { prosesAnalisisCheckPoint(lat, lon, "Titik Koordinat Cari"); return; }
-        }
-        alert("Masukkan koordinat valid format: Lat, Lon");
-    }
-
-    function ambilGPSCheckPage() {
-        if (!navigator.geolocation) { alert("GPS tidak didukung."); return; }
-        showStatusModal("Mengakses GPS...", "Mendapatkan titik perangkat...", true);
-        navigator.geolocation.getCurrentPosition(
-            (pos) => { document.getElementById('statusModal').style.display = 'none'; prosesAnalisisCheckPoint(pos.coords.latitude, pos.coords.longitude, "Lokasi Perangkat GPS"); },
-            (err) => { document.getElementById('statusModal').style.display = 'none'; alert("Gagal ambil GPS: " + err.message); },
-            { enableHighAccuracy: true, timeout: 10000 }
-        );
-    }
-
-    // ================= PETA HALAMAN 2: SUPABASE FETCH DATA =================
-    const mapList = L.map('mapList', { zoomControl: false }).setView([0.3847, 109.9532], 11);
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles © Esri' }).addTo(mapList);
-    L.control.zoom({ position: 'bottomright' }).addTo(mapList);
-    let listMarkersGroup = new L.FeatureGroup().addTo(mapList);
-    let listLp2bLayer = new L.FeatureGroup().addTo(mapList);
-
-    async function muatDaftarPoktanKeFolder() {
-        const container = document.getElementById('containerFolderPoktan');
-        container.innerHTML = `<i style="font-size: 12px; color: #888;">Memuat data dari Supabase...</i>`;
-        listMarkersGroup.clearLayers();
-        listLp2bLayer.clearLayers();
-
-        try {
-            const { data, error } = await supabaseClient
-                .from('pengajuan_poktan')
-                .select('*')
-                .order('created_at', { ascending: false });
-
-            if (error) throw error;
-
-            masterDataPoktan = data || [];
-            if (masterDataPoktan.length === 0) {
-                container.innerHTML = `<i style="font-size: 12px; color: #888;">Belum ada data pengajuan poktan.</i>`;
-                return;
-            }
-            renderFolderStruktur(masterDataPoktan);
-        } catch (e) {
-            console.error(e);
-            container.innerHTML = `<i style="font-size: 12px; color: var(--danger);">Gagal memuat data poktan dari Supabase.</i>`;
-        }
-    }
-
-    function renderFolderStruktur(dataArray) {
-        const container = document.getElementById('containerFolderPoktan');
-        container.innerHTML = '';
-        listMarkersGroup.clearLayers();
-
-        if (dataArray.length === 0) {
-            container.innerHTML = `<i style="font-size: 12px; color: #888;">Data tidak ditemukan.</i>`;
-            return;
-        }
-
-        let grouped = {};
-        dataArray.forEach(item => {
-            const kec = item.kecamatan || "Lainnya";
-            const desa = item.desa || "Lainnya";
-            if (!grouped[kec]) grouped[kec] = {};
-            if (!grouped[kec][desa]) grouped[kec][desa] = [];
-            grouped[kec][desa].push(item);
+            marker.bindPopup(`<b>Titik Lokasi Terpilih</b><br>Lat: ${lat}<br>Lng: ${lng}`).openPopup();
         });
 
-        Object.keys(grouped).sort().forEach(kec => {
-            const kecDiv = document.createElement('div');
-            kecDiv.className = 'folder-kecamatan';
+        // Fungsi Upload File ke Supabase Storage
+        async function uploadToStorage(fileInputId, folderName) {
+            const fileInput = document.getElementById(fileInputId);
+            if (!fileInput.files || fileInput.files.length === 0) return null;
 
-            const countKec = Object.values(grouped[kec]).reduce((a, b) => a + b.length, 0);
-            
-            const kecHeader = document.createElement('div');
-            kecHeader.className = 'folder-kecamatan-header';
-            kecHeader.innerHTML = `<span>📁 Kec. ${kec} (${countKec})</span><span>▼</span>`;
-            
-            const kecBody = document.createElement('div');
-            kecBody.className = 'folder-kecamatan-body';
+            const file = fileInput.files[0];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Date.now()}_${Math.random().toString(36.substring(2, 9))}.${fileExt}`;
+            const filePath = `${fileName}`;
 
-            kecHeader.onclick = () => {
-                kecBody.style.display = kecBody.style.display === 'block' ? 'none' : 'block';
-                kecHeader.querySelector('span:last-child').innerText = kecBody.style.display === 'block' ? '▲' : '▼';
-            };
+            // Upload ke bucket 'foto_pengajuan'
+            const { data, error } = await supabaseClient.storage
+                .from('foto_pengajuan')
+                .upload(filePath, file);
 
-            Object.keys(grouped[kec]).sort().forEach(desa => {
-                const desaDiv = document.createElement('div');
-                desaDiv.className = 'folder-desa';
+            if (error) {
+                console.error('Gagal upload gambar:', error.message);
+                alert('Gagal mengunggah foto: ' + error.message);
+                return null;
+            }
 
-                const listDesaItem = grouped[kec][desa];
-                const desaHeader = document.createElement('div');
-                desaHeader.className = 'folder-desa-header';
-                desaHeader.innerHTML = `<span>📂 Desa ${desa} (${listDesaItem.length})</span><span>▼</span>`;
+            // Ambil Public URL dari file yang di-upload
+            const { data: publicUrlData } = supabaseClient.storage
+                .from('foto_pengajuan')
+                .getPublicUrl(filePath);
 
-                const desaBody = document.createElement('div');
-                desaBody.className = 'folder-desa-body';
+            return publicUrlData.publicUrl;
+        }
 
-                desaHeader.onclick = () => {
-                    desaBody.style.display = desaBody.style.display === 'flex' ? 'none' : 'flex';
-                    desaHeader.querySelector('span:last-child').innerText = desaBody.style.display === 'flex' ? '▲' : '▼';
+        // Handle Submit Form
+        document.getElementById('gisForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.innerText = 'Mengunggah & Menyimpan...';
+
+            try {
+                // 1. Upload foto sawah & jalan ke Supabase Storage
+                const fotoSawahUrl = await uploadToStorage('fotoSawah', 'sawah');
+                const fotoJalanUrl = await uploadToStorage('fotoJalan', 'jalan');
+
+                // 2. Kumpulkan data form
+                const formData = {
+                    nama_poktan: document.getElementById('namaPoktan').value,
+                    nik: document.getElementById('nik').value,
+                    latitude: parseFloat(document.getElementById('lat').value),
+                    longitude: parseFloat(document.getElementById('lng').value),
+                    panjang_jalan: document.getElementById('panjangJalan').value,
+                    foto_sawah: fotoSawahUrl,
+                    foto_jalan: fotoJalanUrl
                 };
 
-                listDesaItem.forEach(r => {
-                    let lat = parseFloat(r.lat_awal);
-                    let lon = parseFloat(r.lon_awal);
+                // 3. Simpan ke Database Tabel 'pengajuan_poktan'
+                const { error } = await supabaseClient
+                    .from('pengajuan_poktan')
+                    .insert([formData]);
 
-                    if (!isNaN(lat) && !isNaN(lon)) {
-                        const marker = L.marker([lat, lon]).addTo(listMarkersGroup);
-                        marker.bindPopup(`<b>${r.nama_poktan || "Poktan"}</b><br>Ketua: ${r.nama_ketua || "-"}<br>Kec: ${kec} | Desa: ${desa}`);
-                    }
+                if (error) throw error;
 
-                    const row = document.createElement('div');
-                    row.className = 'poktan-item-row';
-                    row.innerHTML = `
-                        <strong style="font-size: 12.5px; color: var(--primary);">${r.nama_poktan || "Tanpa Nama"}</strong>
-                        <span style="font-size: 11px; color: #555;">Ketua: ${r.nama_ketua || "-"}</span>
-                    `;
-                    row.onclick = () => {
-                        if (!isNaN(lat) && !isNaN(lon) && lat !== 0) {
-                            mapList.setView([lat, lon], 16);
-                            pilihDanTampilkanLp2bPoktan(lat, lon);
-                        } else {
-                            alert("Koordinat tidak valid.");
-                        }
-                    };
-                    desaBody.appendChild(row);
-                });
-
-                desaDiv.appendChild(desaHeader);
-                desaDiv.appendChild(desaBody);
-                kecBody.appendChild(desaDiv);
-            });
-
-            kecDiv.appendChild(kecHeader);
-            kecDiv.appendChild(kecBody);
-            container.appendChild(kecDiv);
-        });
-    }
-
-    function filterDataPoktanWilayah() {
-        const keyword = document.getElementById('inputPencarianPoktan').value.toLowerCase();
-        const filtered = masterDataPoktan.filter(r => {
-            const namaP = (r.nama_poktan || "").toLowerCase();
-            const namaK = (r.nama_ketua || "").toLowerCase();
-            const kec = (r.kecamatan || "").toLowerCase();
-            const desa = (r.desa || "").toLowerCase();
-            return namaP.includes(keyword) || namaK.includes(keyword) || kec.includes(keyword) || desa.includes(keyword);
-        });
-        renderFolderStruktur(filtered);
-    }
-
-    function tampilkanSemuaPinDiPeta() {
-        if (listMarkersGroup.getLayers().length > 0) {
-            mapList.fitBounds(listMarkersGroup.getBounds(), { padding: [40, 40] });
-            alert("🌐 Semua pin titik poktan ditampilkan di peta!");
-        } else {
-            alert("Tidak ada pin koordinat untuk ditampilkan.");
-        }
-    }
-
-    async function pilihDanTampilkanLp2bPoktan(lat, lon) {
-        showStatusModal("Memuat Analisis...", "Mengambil poligon LP2B...", true);
-        const lp2b = await muatDataLP2BGlobal();
-        document.getElementById('statusModal').style.display = 'none';
-
-        listLp2bLayer.clearLayers();
-        const pt = turf.point([lon, lat]);
-        let targetPolygonFeature = null, masukLp2b = false;
-
-        if (lp2b && lp2b.features) {
-            for (let f of lp2b.features) {
-                try { if (turf.booleanPointInPolygon(pt, f)) { masukLp2b = true; targetPolygonFeature = f; break; } } catch (err) {}
-            }
-            if (!targetPolygonFeature) {
-                let minDistance = Infinity;
-                lp2b.features.forEach(f => {
-                    try {
-                        const dist = turf.pointToPolygonDistance(pt, f, { units: 'kilometers' });
-                        if (dist < minDistance) { minDistance = dist; targetPolygonFeature = f; }
-                    } catch (err) {}
-                });
-            }
-        }
-
-        if (targetPolygonFeature) {
-            L.geoJSON(targetPolygonFeature, {
-                style: { color: masukLp2b ? "#27ae60" : "#e67e22", weight: 4, fillColor: masukLp2b ? "#27ae60" : "#e67e22", fillOpacity: 0.6 }
-            }).addTo(listLp2bLayer);
-        }
-    }
-
-    // ================= FORMULIR PENGAJUAN =================
-    document.addEventListener('DOMContentLoaded', () => {
-        const selectKecamatan = document.getElementById('kecamatan');
-        Object.keys(wilayahLandak).sort().forEach(kec => {
-            const opt = document.createElement('option');
-            opt.value = kec; opt.textContent = kec;
-            selectKecamatan.appendChild(opt);
-        });
-    });
-
-    function updateDesaList() {
-        const kecSelected = document.getElementById('kecamatan').value;
-        const selectDesa = document.getElementById('desa');
-        selectDesa.innerHTML = '<option value="">-- Pilih Desa --</option>';
-        if (kecSelected && wilayahLandak[kecSelected]) {
-            wilayahLandak[kecSelected].sort().forEach(desa => {
-                const opt = document.createElement('option');
-                opt.value = desa; opt.textContent = desa;
-                selectDesa.appendChild(opt);
-            });
-        }
-    }
-
-    const mapForm = L.map('mapForm', { zoomControl: false }).setView([0.3847, 109.9532], 11);
-    mapForm.createPane('lp2bPane'); mapForm.getPane('lp2bPane').style.zIndex = 400;
-    mapForm.createPane('rutePane'); mapForm.getPane('rutePane').style.zIndex = 600;
-
-    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles © Esri' }).addTo(mapForm);
-    L.control.zoom({ position: 'bottomright' }).addTo(mapForm);
-
-    let layerRute = new L.FeatureGroup({ pane: 'rutePane' }).addTo(mapForm);
-    let layerLp2bForm = new L.FeatureGroup({ pane: 'lp2bPane' }).addTo(mapForm);
-    let polylineRute = null;
-    let gpsMarkerForm = null;
-    let photosSawah = [];
-    let photosJalan = [];
-
-    function ambilLokasiGPSForm() {
-        if (!navigator.geolocation) { alert("GPS tidak didukung."); return; }
-        showStatusModal("Mengakses GPS...", "Mendapatkan titik koordinat...", true);
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                document.getElementById('statusModal').style.display = 'none';
-                const lat = pos.coords.latitude, lon = pos.coords.longitude;
-                document.getElementById('lat_awal').value = lat.toFixed(6);
-                document.getElementById('lon_awal').value = lon.toFixed(6);
-                mapForm.setView([lat, lon], 18);
-
-                if (gpsMarkerForm) mapForm.removeLayer(gpsMarkerForm);
-                gpsMarkerForm = L.marker([lat, lon], { draggable: true }).addTo(mapForm);
-                gpsMarkerForm.bindPopup("<b>Titik GPS Anda</b><br>Geser pin untuk sesuaikan posisi.").openPopup();
-                gpsMarkerForm.on('dragend', function(e) {
-                    const c = e.target.getLatLng();
-                    document.getElementById('lat_awal').value = c.lat.toFixed(6);
-                    document.getElementById('lon_awal').value = c.lng.toFixed(6);
-                });
-                alert("✅ GPS berhasil diambil! Pin merah bisa digeser.");
-            },
-            (err) => { document.getElementById('statusModal').style.display = 'none'; alert("Gagal ambil GPS: " + err.message); },
-            { enableHighAccuracy: true, timeout: 10000 }
-        );
-    }
-
-    function plotKePetaForm(autoZoom = true) {
-        layerRute.clearLayers();
-        const latA = parseFloat(document.getElementById('lat_awal').value);
-        const lonA = parseFloat(document.getElementById('lon_awal').value);
-        const latB = parseFloat(document.getElementById('lat_akhir').value);
-        const lonB = parseFloat(document.getElementById('lon_akhir').value);
-
-        if (!isNaN(latA) && !isNaN(lonA) && !isNaN(latB) && !isNaN(lonB)) {
-            polylineRute = L.polyline([[latA, lonA], [latB, lonB]], { pane: 'rutePane', color: '#e74c3c', weight: 5 }).addTo(layerRute);
-            polylineRute.pm.enable({ allowSelfIntersection: false });
-            polylineRute.on('pm:edit pm:vertexadded pm:vertexremoved pm:markerdrag', updateFormDanJarak);
-            if (autoZoom) mapForm.fitBounds(polylineRute.getBounds(), { padding: [40, 40] });
-            updateHitungJarakLengkung();
-        } else if (autoZoom) {
-            alert("Lengkapi koordinat awal dan akhir!");
-        }
-    }
-
-    function resetRutePetaForm() {
-        layerRute.clearLayers();
-        polylineRute = null;
-        document.getElementById('lat_awal').value = "";
-        document.getElementById('lon_awal').value = "";
-        document.getElementById('lat_akhir').value = "";
-        document.getElementById('lon_akhir').value = "";
-        document.getElementById('lbl-panjang').innerText = "0 meter";
-        if (gpsMarkerForm) { mapForm.removeLayer(gpsMarkerForm); gpsMarkerForm = null; }
-        alert("🔄 Rute direset!");
-    }
-
-    function updateFormDanJarak() {
-        if (!polylineRute) return;
-        const ll = polylineRute.getLatLngs();
-        if (ll.length > 0) {
-            document.getElementById('lat_awal').value = ll[0].lat.toFixed(6);
-            document.getElementById('lon_awal').value = ll[0].lng.toFixed(6);
-            document.getElementById('lat_akhir').value = ll[ll.length - 1].lat.toFixed(6);
-            document.getElementById('lon_akhir').value = ll[ll.length - 1].lng.toFixed(6);
-        }
-        updateHitungJarakLengkung();
-    }
-
-    function updateHitungJarakLengkung() {
-        if (!polylineRute) return;
-        const ll = polylineRute.getLatLngs();
-        let total = 0;
-        for (let i = 0; i < ll.length - 1; i++) total += ll[i].distanceTo(ll[i + 1]);
-        document.getElementById('lbl-panjang').innerText = total >= 1000 ? (total / 1000).toFixed(2) + " km" : total.toFixed(2) + " meter";
-    }
-
-    async function prosesValidasiDanAnalisis() {
-        if (document.getElementById('nik').value.length !== 16) { alert("NIK harus 16 digit!"); return; }
-        if (!polylineRute) plotKePetaForm(false);
-        const ll = polylineRute ? polylineRute.getLatLngs() : [];
-        if (ll.length < 2) { alert("Rute belum dibuat!"); return; }
-
-        showStatusModal("Menganalisis Spasial...", "Memuat data LP2B...", true);
-        try {
-            const lp2b = await muatDataLP2BGlobal();
-            const ptA = turf.point([ll[0].lng, ll[0].lat]);
-            const ptB = turf.point([ll[ll.length - 1].lng, ll[ll.length - 1].lat]);
-            const line = turf.lineString(ll.map(p => [p.lng, p.lat]));
-            const buf = turf.buffer(line, 5, { units: 'kilometers' });
-
-            let inA = false, inB = false;
-            layerLp2bForm.clearLayers();
-            if (lp2b) {
-                L.geoJSON(lp2b, {
-                    pane: 'lp2bPane',
-                    filter: f => turf.booleanIntersects(buf, f),
-                    style: f => {
-                        try {
-                            if (turf.booleanPointInPolygon(ptA, f)) inA = true;
-                            if (turf.booleanPointInPolygon(ptB, f)) inB = true;
-                        } catch (e) {}
-                        return { color: "#27ae60", weight: 2, fillColor: "#27ae60", fillOpacity: 0.5 };
-                    }
-                }).addTo(layerLp2bForm);
-            }
-
-            document.getElementById('statusModal').style.display = 'none';
-            if (inA && inB) {
-                if (confirm("✅ Titik valid dalam LP2B! Kirim data sekarang?")) kirimDataKeBackend();
-            } else {
-                alert("❌ Ditolak: Titik awal/akhir harus di dalam kawasan LP2B.");
-            }
-        } catch (e) {
-            document.getElementById('statusModal').style.display = 'none';
-            alert("Gagal memproses analisis spasial.");
-        }
-    }
-
-    // ================= KIRIM DATA KE SUPABASE =================
-    async function kirimDataKeBackend() {
-        showStatusModal("Mengirim Data...", "Menyimpan ke Supabase...", true);
-        
-        const payload = {
-            nama_poktan: document.getElementById('nama_poktan').value,
-            kecamatan: document.getElementById('kecamatan').value,
-            desa: document.getElementById('desa').value,
-            nama_ketua: document.getElementById('nama_ketua').value,
-            nik: document.getElementById('nik').value,
-            jumlah_anggota: parseInt(document.getElementById('jumlah_anggota').value),
-            luas_lahan: parseFloat(document.getElementById('luas_lahan').value),
-            lat_awal: parseFloat(document.getElementById('lat_awal').value),
-            lon_awal: parseFloat(document.getElementById('lon_awal').value),
-            lat_akhir: parseFloat(document.getElementById('lat_akhir').value),
-            lon_akhir: parseFloat(document.getElementById('lon_akhir').value),
-            panjang_jalan: document.getElementById('lbl-panjang').innerText,
-            foto_sawah: JSON.stringify(photosSawah),
-            foto_jalan: JSON.stringify(photosJalan)
-        };
-
-        try {
-            const { error } = await supabaseClient
-                .from('pengajuan_poktan')
-                .insert([payload]);
-
-            document.getElementById('statusModal').style.display = 'none';
-
-            if (error) throw error;
-
-            alert("🎉 Selamat Data Anda Sudah Terinput ke Supabase!");
-            document.getElementById('mainForm').reset();
-            resetRutePetaForm();
-            photosSawah = []; photosJalan = [];
-            document.getElementById('previewSawahGrid').innerHTML = '';
-            document.getElementById('previewJalanGrid').innerHTML = '';
-            document.getElementById('btnPrint').style.display = 'block';
-
-        } catch (e) {
-            document.getElementById('statusModal').style.display = 'none';
-            alert("Gagal menyimpan ke Supabase: " + e.message);
-        }
-    }
-
-    function cetakBuktiPDF() {
-        const w = window.open('', '_blank');
-        w.document.write(`
-            <html><head><title>Bukti Pengajuan</title></head>
-            <body style="font-family:Arial; padding:20px;">
-                <h2>BUKTI PENGAJUAN JUT - KAB. LANDAK</h2>
-                <p><b>Poktan:</b> ${document.getElementById('nama_poktan').value}</p>
-                <p><b>Ketua:</b> ${document.getElementById('nama_ketua').value}</p>
-                <p><b>Panjang:</b> ${document.getElementById('lbl-panjang').innerText}</p>
-                <script>window.print();<\/script>
-            </body></html>
-        `);
-        w.document.close();
-    }
-
-    function handleFotoUpload(input, jenis) {
-        const files = input.files;
-        const arr = jenis === 'sawah' ? photosSawah : photosJalan;
-
-        for (let i = 0; i < files.length; i++) {
-            if (arr.length >= 2) break;
-            const file = files[i];
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.src = e.target.result;
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    let width = img.width, height = img.height;
-                    const MAX = 1000;
-                    if (width > height && width > MAX) { height *= MAX / width; width = MAX; }
-                    else if (height > MAX) { width *= MAX / height; height = MAX; }
-                    canvas.width = width; canvas.height = height;
-                    canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-                    arr.push({ name: file.name, data: canvas.toDataURL('image/jpeg', 0.7) });
-                    renderPhotoPreviews(jenis);
+                alert('Data dan Foto berhasil dikirim serta tersimpan di Supabase!');
+                document.getElementById('gisForm').reset();
+                if (marker) {
+                    map.removeLayer(marker);
+                    marker = null;
                 }
-            };
-            reader.readAsDataURL(file);
-        }
-        input.value = '';
-    }
-
-    function renderPhotoPreviews(jenis) {
-        const arr = jenis === 'sawah' ? photosSawah : photosJalan;
-        const grid = document.getElementById(jenis === 'sawah' ? 'previewSawahGrid' : 'previewJalanGrid');
-        grid.innerHTML = '';
-        arr.forEach((item, idx) => {
-            const div = document.createElement('div');
-            div.className = 'photo-preview-item';
-            div.innerHTML = `<img src="${item.data}"><button type="button" class="remove-btn" onclick="hapusFoto('${jenis}', ${idx})">✕</button>`;
-            grid.appendChild(div);
+            } catch (err) {
+                console.error(err);
+                alert('Terjadi kesalahan saat menyimpan data: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Kirim Pengajuan';
+            }
         });
-    }
-
-    function hapusFoto(jenis, idx) {
-        if (jenis === 'sawah') { photosSawah.splice(idx, 1); renderPhotoPreviews('sawah'); }
-        else { photosJalan.splice(idx, 1); renderPhotoPreviews('jalan'); }
-    }
-
-    function showStatusModal(title, sub, spinner = true) {
-        document.getElementById('statusTitle').innerText = title;
-        document.getElementById('statusSub').innerText = sub;
-        document.getElementById('statusSpinner').style.display = spinner ? 'block' : 'none';
-        document.getElementById('statusModal').style.display = 'flex';
-    }
-</script>
+    </script>
 </body>
 </html>
